@@ -77,7 +77,7 @@ function populateHubSelect(countryCode) {
   hubSelect.innerHTML = '';
   const airports = AIRPORTS.filter(a => a.country_code === countryCode)
     .sort((a, b) => {
-      if (a.size !== b.size) return a.size === 'major' ? -1 : 1;
+      if (a.size !== b.size) return (AIRPORT_SIZE_RANK[a.size] ?? 3) - (AIRPORT_SIZE_RANK[b.size] ?? 3);
       return a.iata.localeCompare(b.iata);
     });
   airports.forEach(a => {
@@ -97,6 +97,7 @@ function createAircraftInstance(spec, opts = {}) {
   const countryCode = gameState.airline.countryCode;
   const prefixes = getRegistrationPrefixes(countryCode);
   const prefix = condition === 'used' ? prefixes.used : prefixes.new;
+  const initialAgeYears = opts.ageYears || 0;
   return {
     id: opts.id || ('AC' + Math.random().toString(36).slice(2, 8).toUpperCase()),
     manufacturer: spec.manufacturer,
@@ -110,6 +111,7 @@ function createAircraftInstance(spec, opts = {}) {
     min_runway_m: spec.min_runway_m,
     purchasePrice: spec.price_new_usd,
     purchasedAtMinute: gameState.time.totalMinutes,
+    agingResetAtMinute: gameState.time.totalMinutes - initialAgeYears * AGING_YEAR_MINUTES,
     condition,
     cabin: opts.cabin || { economy: spec.max_capacity, premium: 0, business: 0, first: 0 },
     cabinQuality: opts.cabinQuality || 'standard',
@@ -131,7 +133,7 @@ function startNewGame() {
   const hubIata = document.getElementById('setup-hub').value;
 
   gameState = {
-    meta: { version: 2 },
+    meta: { version: 3 },
     airline: {
       name, countryCode, countryName, hubIata,
       hubs: [hubIata],
@@ -207,6 +209,11 @@ function migrateGameState() {
       ac.registrationPrefix = prefix;
       ac.registration = generateRegistration(gameState.airline.countryCode, ac.condition);
     }
+    if (ac.agingResetAtMinute === undefined) {
+      const ageYears = ac.ageYears || 0;
+      const base = ac.purchasedAtMinute || 0;
+      ac.agingResetAtMinute = base - ageYears * AGING_YEAR_MINUTES;
+    }
   });
 
   // Used market registrations
@@ -221,7 +228,43 @@ function migrateGameState() {
   }
 
   gameState.meta = gameState.meta || {};
-  gameState.meta.version = 2;
+  if (gameState.meta.version === undefined) gameState.meta.version = 1;
+
+  // Route model refactor: routes used to be one-per-aircraft
+  // ({ aircraftId, weeklyFrequency, fareMultiplier, ... }). Merge any such
+  // legacy routes sharing an origin-destination pair into a single route
+  // record with an `assignments` array.
+  if (gameState.meta.version < 3) {
+    const merged = [];
+    gameState.routes.forEach(old => {
+      let route = merged.find(r =>
+        (r.originIata === old.originIata && r.destIata === old.destIata) ||
+        (r.originIata === old.destIata && r.destIata === old.originIata)
+      );
+      if (!route) {
+        route = {
+          id: old.id,
+          originIata: old.originIata,
+          destIata: old.destIata,
+          fareMultiplier: old.fareMultiplier || 1,
+          assignments: [],
+          createdAtMinute: old.createdAtMinute || 0
+        };
+        merged.push(route);
+      }
+      if (old.aircraftId) {
+        route.assignments.push({ aircraftId: old.aircraftId, weeklyFrequency: old.weeklyFrequency || 1 });
+      }
+    });
+    gameState.routes = merged;
+
+    // Rebuild each aircraft's routeIds from the merged routes.
+    gameState.fleet.forEach(ac => {
+      ac.routeIds = gameState.routes.filter(r => r.assignments.some(a => a.aircraftId === ac.id)).map(r => r.id);
+    });
+  }
+
+  gameState.meta.version = 3;
 }
 
 function resetGame() {
