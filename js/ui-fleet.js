@@ -18,10 +18,17 @@ function renderFleetPage() {
 
   gameState.fleet.forEach(ac => {
     const hoursUsed = aircraftWeeklyHoursUsed(ac, null);
-    const routes = gameState.routes.filter(r => r.aircraftId === ac.id);
+    const routes = gameState.routes.filter(r => r.assignments.some(a => a.aircraftId === ac.id));
     const seatsTotal = cabinTotalSeats(ac.cabin);
-    const weeklyProfit = routes.reduce((s, r) => s + (r.profitWeekly || 0), 0);
+    const weeklyProfit = routes.reduce((s, r) => {
+      const asg = r.assignments.find(a => a.aircraftId === ac.id);
+      const revenueShare = r.capacityWeekly > 0 ? (r.revenueWeekly || 0) * (asg.capacityWeekly / r.capacityWeekly) : 0;
+      const costs = (asg.fuelWeekly || 0) + (asg.crewWeekly || 0) + (asg.maintenanceWeekly || 0);
+      return s + (revenueShare - costs);
+    }, 0);
     const utilPct = Math.min(100, (hoursUsed / MAX_WEEKLY_HOURS) * 100);
+    const ageYears = getAircraftAgeYears(ac);
+    const agingTier = getAgingTier(ac);
 
     const card = document.createElement('div');
     card.className = 'strip';
@@ -38,6 +45,7 @@ function renderFleetPage() {
       <div class="strip-row"><span class="k">Min. runway</span><span class="v">${formatNumber(ac.min_runway_m)} m</span></div>
       <div class="strip-row"><span class="k">Cabin layout</span><span class="v">${ac.cabin.economy}Y / ${ac.cabin.premium}W / ${ac.cabin.business}J / ${ac.cabin.first}F (${seatsTotal} total)</span></div>
       <div class="strip-row"><span class="k">Cabin quality</span><span class="v">${CABIN_QUALITIES[ac.cabinQuality].label}</span></div>
+      <div class="strip-row"><span class="k">Cabin/aging condition</span><span class="v">${agingTier.label} (${ageYears.toFixed(1)} yr since refit/new)</span></div>
       <div class="strip-row"><span class="k"></span><span class="v">
         <button class="btn" style="padding:2px 8px; font-size:11px;" onclick="openEditCabinModal('${ac.id}')">Edit Cabin &amp; Quality</button>
       </span></div>
@@ -216,6 +224,7 @@ function confirmEditCabin() {
   gameState.finance.cash -= refitCost;
   ac.cabin = { economy, premium: cabin.premium, business: cabin.business, first: cabin.first };
   ac.cabinQuality = quality;
+  ac.agingResetAtMinute = gameState.time.totalMinutes;
 
   recomputeAircraftRoutes(ac.id);
 
