@@ -20,6 +20,7 @@ function initMap() {
   routeLayer = L.layerGroup().addTo(map);
 
   renderAirportMarkers();
+  map.on('zoomend', renderAirportMarkers);
 
   // legend toggles
   document.getElementById('toggle-airports').addEventListener('change', (e) => {
@@ -41,13 +42,19 @@ function renderAirportMarkers() {
   if (!airportLayer) return;
   airportLayer.clearLayers();
 
+  const zoom = map.getZoom();
+
   AIRPORTS.forEach(a => {
+    const minZoom = AIRPORT_SIZE_MIN_ZOOM[a.size] ?? 0;
     const isHub = gameState.airline.hubs.includes(a.iata);
+    if (!isHub && zoom < minZoom) return;
+
     let cls = 'airport-marker';
     if (isHub) cls += ' hub';
+    else if (a.size === 'large') cls += ' large';
     else if (a.size === 'regional') cls += ' regional';
 
-    const size = isHub ? 18 : 12;
+    const size = isHub ? 18 : (a.size === 'major' ? 12 : a.size === 'large' ? 10 : 8);
     const icon = L.divIcon({
       className: cls,
       iconSize: [size, size],
@@ -71,6 +78,54 @@ function renderAirportMarkers() {
     marker.bindPopup(popupHtml);
     marker.addTo(airportLayer);
   });
+}
+
+// ---------------------------------------------------------
+// Route detail mini-map (origin/destination + great-circle line)
+// ---------------------------------------------------------
+let routeDetailMap = null;
+let routeDetailMapLayer = null;
+
+function initRouteDetailMap() {
+  if (routeDetailMap) return;
+  routeDetailMap = L.map('route-detail-map', {
+    zoomControl: true,
+    attributionControl: false,
+    worldCopyJump: true
+  }).setView([0, 0], 2);
+
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+    maxZoom: 19,
+    subdomains: 'abcd'
+  }).addTo(routeDetailMap);
+
+  routeDetailMapLayer = L.layerGroup().addTo(routeDetailMap);
+}
+
+function renderRouteDetailMap(route) {
+  if (!routeDetailMap) initRouteDetailMap();
+  routeDetailMapLayer.clearLayers();
+
+  const origin = AIRPORTS.find(a => a.iata === route.originIata);
+  const dest = AIRPORTS.find(a => a.iata === route.destIata);
+  if (!origin || !dest) return;
+
+  [origin, dest].forEach(a => {
+    const isHub = gameState.airline.hubs.includes(a.iata);
+    const icon = L.divIcon({
+      className: 'airport-marker' + (isHub ? ' hub' : ''),
+      iconSize: [isHub ? 16 : 12, isHub ? 16 : 12],
+      html: ''
+    });
+    L.marker([a.lat, a.lon], { icon }).bindPopup(`<b>${a.iata}</b> — ${a.city}, ${a.country}`).addTo(routeDetailMapLayer);
+  });
+
+  L.polyline([[origin.lat, origin.lon], [dest.lat, dest.lon]], {
+    color: '#4dd8c8', weight: 2, opacity: 0.7, dashArray: '4,4'
+  }).addTo(routeDetailMapLayer);
+
+  routeDetailMap.fitBounds(L.latLngBounds([[origin.lat, origin.lon], [dest.lat, dest.lon]]), { padding: [40, 40] });
+  setTimeout(() => routeDetailMap.invalidateSize(), 50);
 }
 
 // Purchase a new hub at the given airport (costs HUB_COST).
