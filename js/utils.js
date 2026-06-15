@@ -114,3 +114,20 @@ function generateRegistration(countryCode, condition) {
   const prefix = condition === 'used' ? prefixes.used : prefixes.new;
   return prefix + randomRegistrationSuffix();
 }
+
+// Build <optgroup> blocks of <option>s for a list of airports, grouped and
+// sorted by country. `labelFn(airport)` returns the option's display text.
+function buildAirportOptionsByCountry(airports, selectedIata, labelFn) {
+  const byCountry = new Map();
+  airports.forEach(a => {
+    if (!byCountry.has(a.country)) byCountry.set(a.country, []);
+    byCountry.get(a.country).push(a);
+  });
+
+  return Array.from(byCountry.keys()).sort().map(country => {
+    const options = byCountry.get(country).map(a =>
+      `<option value="${a.iata}" ${a.iata === selectedIata ? 'selected' : ''}>${labelFn(a)}</option>`
+    ).join('');
+    return `<optgroup label="${country}">${options}</optgroup>`;
+  }).join('');
+}
