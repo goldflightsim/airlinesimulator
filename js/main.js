@@ -109,7 +109,9 @@ function closeModal() {
   purchaseDraft = null;
   routeDraft = null;
   cabinEditDraft = null;
-  freqEditDraft = null;
+  addAircraftDraft = null;
+  editAssignmentDraft = null;
+  fareEditDraft = null;
 }
 
 document.addEventListener('click', (e) => {
