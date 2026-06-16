@@ -15,9 +15,7 @@ const CASH_UPDATE_INTERVAL_DAYS = 1;
 
 // --- Hubs -----------------------------------------------------
 const HUB_COST = 100000000; // cost to purchase a new hub airport
-
-// Cost to set up a new route (marketing, staffing, ground ops, admin)
-const ROUTE_CREATION_FEE = 500000;
+const ROUTE_CREATION_COST = 500000; // one-time setup cost to open a new route
 
 // --- Cabin economics -------------------------------------------
 // Cabin space: each seat "costs" this many capacity units.
@@ -47,6 +45,9 @@ const AGING_TIERS = [
 
 // Extra purchase/refit cost (USD) per seat for non-economy classes.
 const SEAT_PRICE_PER_UNIT = { economy: 0, premium: 150000, business: 400000, first: 900000 };
+
+// Selling an aircraft from the fleet returns this fraction of its purchasePrice.
+const AIRCRAFT_SELL_RATIO = 0.6;
 
 // Refit (re-cabin / re-quality) cost on existing aircraft.
 const REFIT_BASE_FEE = 250000;
