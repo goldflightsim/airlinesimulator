@@ -32,8 +32,8 @@ function renderOverviewPanel() {
   document.getElementById('ov-hub').textContent = hub ? `${hub.iata} — ${hub.city}` : airline.hubIata;
   document.getElementById('ov-livery-dot').style.background = airline.livery;
 
-  const revenue = routes.reduce((s, r) => s + (r.revenueWeekly || 0), 0);
-  const expenses = routes.reduce((s, r) => s + (r.fuelWeekly || 0) + (r.crewWeekly || 0) + (r.maintenanceWeekly || 0), 0);
+  const revenue = routes.reduce((s, r) => s + (r.totalRevenueWeekly || 0), 0);
+  const expenses = routes.reduce((s, r) => s + (r.totalExpensesWeekly || 0), 0);
   const profit = revenue - expenses;
 
   document.getElementById('ov-cash').textContent = formatMoney(finance.cash);
