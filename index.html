@@ -223,7 +223,7 @@
       </div>
     </div>
 
-    <!-- ROUTES -->
+    <!-- ROUTES LIST -->
     <div class="view" id="view-routes">
       <div class="page" style="max-width:1300px;">
         <h1>Routes</h1>
@@ -231,20 +231,77 @@
         <button class="btn primary" id="new-route-btn">+ New Route</button>
         <div class="placeholder-block" id="routes-placeholder" style="margin-top:18px;">
           <div class="big">No routes yet</div>
-          Create your first route — an origin in your home country, and a destination.
+          Create your first route — pick a hub departure and any destination on the map.
         </div>
         <div id="routes-list" style="display:none; margin-top:18px;"></div>
       </div>
     </div>
 
-    <!-- ROUTE DETAIL -->
+    <!-- ROUTE CREATION (map-based) -->
+    <div class="view" id="view-route-creation">
+      <div class="rc-header">
+        <button class="btn" onclick="closeRouteCreationPage()">&#8592; Back</button>
+        <div id="rc-step-label" class="rc-step-label">Step 1: Click a hub to set departure</div>
+        <button class="btn primary" id="rc-create-btn" disabled onclick="confirmCreateRoute()">
+          Create Route &mdash; $500K
+        </button>
+      </div>
+      <div class="rc-body">
+        <div id="rc-map"></div>
+        <div id="rc-stats-panel" class="rc-stats-panel hidden"></div>
+      </div>
+    </div>
+
+    <!-- INDIVIDUAL ROUTE PAGE -->
     <div class="view" id="view-route-detail">
       <div class="page" style="max-width:1300px;">
-        <button class="btn" id="route-detail-back">&larr; Back to Routes</button>
-        <h1 id="route-detail-title" style="margin-top:14px;">—</h1>
-        <div id="route-detail-map" style="height:280px; border:1px solid var(--border); border-radius:8px; margin-bottom:18px;"></div>
-        <div id="route-detail-stats"></div>
-        <div id="route-detail-assignments" style="margin-top:18px;"></div>
+        <div style="display:flex; align-items:center; gap:14px; margin-bottom:6px;">
+          <button class="btn" onclick="closeIndividualRoutePage()">&#8592; All Routes</button>
+          <div>
+            <h1 id="rp-title" style="margin:0; font-size:22px;">—</h1>
+            <div id="rp-subtitle" class="subtitle" style="margin:0;"></div>
+          </div>
+        </div>
+
+        <!-- Top section: mini-map + stats -->
+        <div class="rp-top-section">
+          <div id="rp-minimap" class="rp-minimap"></div>
+          <div>
+            <div id="rp-stats" class="rp-stat-grid"></div>
+          </div>
+        </div>
+
+        <!-- Financials -->
+        <div class="rp-section-grid">
+          <div class="strip">
+            <h3>Financials</h3>
+            <div id="rp-financials"></div>
+          </div>
+        </div>
+
+        <!-- Fleet assignment -->
+        <div style="margin-top:20px;">
+          <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:12px;">
+            <h2 style="margin:0; font-family:var(--font-display); font-size:16px;">Aircraft Assignments</h2>
+            <button class="btn primary" onclick="openAddAssignmentModal(currentRoutePageId)">+ Add Aircraft</button>
+          </div>
+          <div class="rp-table-wrap">
+            <table class="rp-table">
+              <thead>
+                <tr>
+                  <th>Registration</th>
+                  <th>Model</th>
+                  <th>Capacity</th>
+                  <th>Frequency</th>
+                  <th>Load Factor</th>
+                  <th>Fares</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="rp-assignments-body"></tbody>
+            </table>
+          </div>
+        </div>
       </div>
     </div>
 
