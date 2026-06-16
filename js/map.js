@@ -68,9 +68,10 @@ function renderAirportMarkers() {
       `Runway: ${formatNumber(a.runway_m)} m &middot; ${a.size}`;
 
     if (!isHub) {
-      const canAfford = gameState.finance.cash >= HUB_COST;
+      const hubCost = HUB_COST_BY_SIZE[a.size] ?? HUB_COST_DEFAULT;
+      const canAfford = gameState.finance.cash >= hubCost;
       popupHtml += `<div style="margin-top:8px;">` +
-        `<button class="btn primary" ${canAfford ? '' : 'disabled'} onclick="purchaseHub('${a.iata}')">Purchase Hub — ${formatMoney(HUB_COST)}</button>` +
+        `<button class="btn primary" ${canAfford ? '' : 'disabled'} onclick="purchaseHub('${a.iata}')">Purchase Hub — ${formatMoney(hubCost)}</button>` +
         `</div>`;
       if (!canAfford) popupHtml += `<div style="color:var(--red); font-size:11px; margin-top:4px;">Not enough cash.</div>`;
     }
@@ -80,12 +81,14 @@ function renderAirportMarkers() {
   });
 }
 
-// Purchase a new hub at the given airport (costs HUB_COST).
+// Purchase a new hub at the given airport (cost varies by airport size).
 function purchaseHub(iata) {
   if (gameState.airline.hubs.includes(iata)) return;
-  if (gameState.finance.cash < HUB_COST) return;
+  const airport = AIRPORTS.find(a => a.iata === iata);
+  const hubCost = HUB_COST_BY_SIZE[airport?.size] ?? HUB_COST_DEFAULT;
+  if (gameState.finance.cash < hubCost) return;
 
-  gameState.finance.cash -= HUB_COST;
+  gameState.finance.cash -= hubCost;
   gameState.airline.hubs.push(iata);
 
   saveGame();

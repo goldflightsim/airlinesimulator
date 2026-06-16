@@ -14,7 +14,9 @@ const LIVERY_COLORS = ['#4dd8c8', '#f2a93b', '#f76c6c', '#4ade80', '#a78bfa', '#
 const CASH_UPDATE_INTERVAL_DAYS = 1;
 
 // --- Hubs -----------------------------------------------------
-const HUB_COST = 100000000; // cost to purchase a new hub airport
+// Cost to purchase a new hub airport, by airport size tier.
+const HUB_COST_BY_SIZE = { major: 100000000, large: 50000000, regional: 15000000 };
+const HUB_COST_DEFAULT = HUB_COST_BY_SIZE.regional;
 const ROUTE_CREATION_COST = 500000; // one-time setup cost to open a new route
 
 // --- Cabin economics -------------------------------------------
