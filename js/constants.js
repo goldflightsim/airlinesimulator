@@ -19,9 +19,28 @@ const HUB_COST_BY_SIZE = { major: 100000000, large: 50000000, regional: 15000000
 const HUB_COST_DEFAULT = HUB_COST_BY_SIZE.regional;
 const ROUTE_CREATION_COST = 500000; // one-time setup cost to open a new route
 
+// --- Per-class demand split -------------------------------------
+// Baseline weekly-passenger split by cabin class, at gdp_index = 1.0.
+// Which table applies to a route is decided by the SMALLER of the two
+// endpoint airports' size tiers (AIRPORT_SIZE_RANK) — e.g. a Major-to-
+// Regional route uses the Regional table, since that's the limiting market.
+const CLASS_DEMAND_SHARES = {
+  major:    { economy: 0.80, premium: 0.10, business: 0.07, first: 0.03 },
+  large:    { economy: 0.83, premium: 0.10, business: 0.07, first: 0    },
+  regional: { economy: 0.93, premium: 0.07, business: 0,    first: 0    }
+};
+// Percentage-point shift in economy share per +1.0 combined gdp_index away
+// from 1.0 (e.g. gdp 1.5 on the Major table: 0.80 - 0.10*0.5 = 0.75 economy).
+// The freed/absorbed share redistributes across that tier's other classes,
+// proportional to their baseline weights.
+const CLASS_DEMAND_GDP_SLOPE = 0.10;
+const CLASS_DEMAND_ECONOMY_MIN = 0.50;
+const CLASS_DEMAND_ECONOMY_MAX = 0.95;
+
 // --- Cabin economics -------------------------------------------
 // Cabin space: each seat "costs" this many capacity units.
 const CABIN_UNIT_WEIGHTS = { economy: 1, premium: 1.5, business: 2.5, first: 4 };
+const CABIN_CLASSES = ['economy', 'premium', 'business', 'first'];
 
 // Cabin quality affects fares, weekly maintenance, and purchase/refit price.
 const CABIN_QUALITIES = {

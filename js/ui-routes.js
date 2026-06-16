@@ -13,6 +13,45 @@ let rcMap = null;
 let rcAirportLayer = null;
 let rcRouteLine = null;
 
+// Cabin class display defs + which classes a route's market tier supports.
+const CLASS_DEFS = [
+  { key: 'economy',  tag: 'Y', label: 'Economy' },
+  { key: 'premium',  tag: 'W', label: 'Premium' },
+  { key: 'business', tag: 'J', label: 'Business' },
+  { key: 'first',    tag: 'F', label: 'First' }
+];
+const TIER_VISIBLE_CLASSES = {
+  major: ['economy', 'premium', 'business', 'first'],
+  large: ['economy', 'premium', 'business'],
+  regional: ['economy', 'premium']
+};
+
+// Per-class served/demand/load% rows for a route, filtered to the classes
+// its market tier actually supports. Works for routes with no assignments
+// yet too (falls back to a live demand preview, capacity/served = 0).
+function classBreakdownRows(route) {
+  const origin = AIRPORTS.find(a => a.iata === route.originIata);
+  const dest = AIRPORTS.find(a => a.iata === route.destIata);
+  const tier = routeDemandTier(origin, dest);
+  const visible = TIER_VISIBLE_CLASSES[tier] || TIER_VISIBLE_CLASSES.regional;
+
+  let demandByClass = route.demandByClass;
+  if (!demandByClass || route.assignments.length === 0) {
+    const distance = route.distanceKm || haversineKm(origin.lat, origin.lon, dest.lat, dest.lon);
+    demandByClass = computeDemandByClass(origin, dest, distance).byClass;
+  }
+  const capByClass = route.totalCapacityByClass || {};
+  const lfByClass = route.avgLoadFactorByClass || {};
+
+  return CLASS_DEFS.filter(c => visible.includes(c.key)).map(c => {
+    const demand = Math.round(demandByClass[c.key] || 0);
+    const capacity = Math.round(capByClass[c.key] || 0);
+    const served = Math.min(capacity, demand);
+    const pct = Math.round((lfByClass[c.key] || 0) * 100);
+    return { ...c, demand, capacity, served, pct };
+  });
+}
+
 // ============================================================
 // ROUTES LIST PAGE
 // ============================================================
@@ -40,7 +79,6 @@ function renderRoutesPage() {
     const loadPct = Math.round((route.avgLoadFactor || 0) * 100);
     const flightHrs = Math.floor((route.flightTimeMin || 0) / 60);
     const flightMins = (route.flightTimeMin || 0) % 60;
-    const served = Math.min(route.totalCapacityWeekly || 0, route.demandWeekly || 0);
     const asnCount = route.assignments.length;
 
     const card = document.createElement('div');
@@ -56,8 +94,15 @@ function renderRoutesPage() {
         <div><b>${formatNumber(route.distanceKm || 0)} km</b>distance</div>
         <div><b>${flightHrs}h ${flightMins}m</b>flight time</div>
         <div><b>${route.totalFrequency || 0}x</b>weekly round trips</div>
-        <div><b>${formatNumber(served)} / ${formatNumber(Math.round(route.demandWeekly || 0))}</b>served / demand
-          <div class="load-bar"><div style="width:${loadPct}%;"></div></div>
+        <div class="route-class-demand">
+          ${classBreakdownRows(route).map(c => `
+            <div class="rcd-row">
+              <b>${c.tag}</b>
+              <span class="rcd-val">${formatNumber(c.served)} / ${formatNumber(c.demand)}</span>
+              <div class="load-bar" style="width:42px;"><div style="width:${c.pct}%;"></div></div>
+            </div>
+          `).join('')}
+          <div class="rcd-caption">served / demand by class</div>
         </div>
         <div><b>${loadPct}%</b>avg load factor</div>
       </div>
@@ -361,6 +406,18 @@ function renderIndividualRoutePage() {
     <div class="rp-fin-row"><span>Weekly frequency</span><span>${route.totalFrequency || 0}x round trips</span></div>
   `;
 
+  // Per-class demand breakdown
+  document.getElementById('rp-class-demand').innerHTML = classBreakdownRows(route).map(c => `
+    <div class="rp-fin-row">
+      <span>${c.label}</span>
+      <span style="display:flex; align-items:center; gap:8px;">
+        ${formatNumber(c.served)} / ${formatNumber(c.demand)}
+        <div class="load-bar" style="width:50px;"><div style="width:${c.pct}%;"></div></div>
+        <span style="width:30px; text-align:right;">${c.pct}%</span>
+      </span>
+    </div>
+  `).join('');
+
   // Aircraft assignments table
   renderAssignmentsTable(route);
 
@@ -382,7 +439,10 @@ function renderAssignmentsTable(route) {
   route.assignments.forEach(asn => {
     const ac = gameState.fleet.find(a => a.id === asn.aircraftId);
     if (!ac) return;
-    const loadPct = Math.round((asn.loadFactor || 0) * 100);
+    const loadLine = ['economy', 'premium', 'business', 'first']
+      .filter(cls => ac.cabin[cls] > 0)
+      .map(cls => `${cls[0].toUpperCase()} ${Math.round((asn.loadFactorByClass?.[cls] || 0) * 100)}%`)
+      .join(' / ');
     const fareLine = ['economy', 'premium', 'business', 'first']
       .filter(cls => ac.cabin[cls] > 0)
       .map(cls => `${cls[0].toUpperCase()} $${Math.round(asn.fares?.[cls] || 0)}`)
@@ -393,12 +453,7 @@ function renderAssignmentsTable(route) {
       <td>${ac.manufacturer} ${ac.model}</td>
       <td>${formatNumber(cabinTotalSeats(ac.cabin))}</td>
       <td>${asn.weeklyFrequency}x</td>
-      <td>
-        <div style="display:flex; align-items:center; gap:8px;">
-          <div class="load-bar" style="width:70px;"><div style="width:${loadPct}%;"></div></div>
-          <span style="font-family:var(--font-mono); font-size:12px;">${loadPct}%</span>
-        </div>
-      </td>
+      <td style="font-family:var(--font-mono); font-size:11px; color:var(--text-muted);">${loadLine}</td>
       <td style="font-family:var(--font-mono); font-size:11px; color:var(--text-muted);">${fareLine}</td>
       <td>
         <button class="btn btn-sm" onclick="openEditAssignmentModal('${route.id}','${asn.id}')">Edit Frequency</button>

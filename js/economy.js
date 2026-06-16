@@ -18,6 +18,42 @@ function computeDemandWeekly(originAirport, destAirport, distanceKm) {
   return Math.round(DEMAND_CONST * mass / (distanceKm + DEMAND_DIST_OFFSET));
 }
 
+// The smaller (more limiting) of the two endpoint airports' size tiers governs
+// which cabin classes a route's market actually generates demand for.
+function routeDemandTier(originAirport, destAirport) {
+  const oRank = AIRPORT_SIZE_RANK[originAirport.size] ?? AIRPORT_SIZE_RANK.regional;
+  const dRank = AIRPORT_SIZE_RANK[destAirport.size] ?? AIRPORT_SIZE_RANK.regional;
+  const limitingRank = Math.max(oRank, dRank); // higher rank = smaller airport
+  return Object.keys(AIRPORT_SIZE_RANK).find(size => AIRPORT_SIZE_RANK[size] === limitingRank) || 'regional';
+}
+
+// Per-class share of total demand for a given tier + combined gdp_index.
+// gdp = 1.0 reproduces CLASS_DEMAND_SHARES[tier] exactly.
+function computeClassShares(tier, gdp) {
+  const base = CLASS_DEMAND_SHARES[tier] || CLASS_DEMAND_SHARES.regional;
+  const economyShare = Math.max(CLASS_DEMAND_ECONOMY_MIN, Math.min(CLASS_DEMAND_ECONOMY_MAX,
+    base.economy - CLASS_DEMAND_GDP_SLOPE * (gdp - 1)));
+  const nonEconomyBase = 1 - base.economy;
+  const nonEconomyScale = nonEconomyBase > 0 ? (1 - economyShare) / nonEconomyBase : 0;
+  return {
+    economy: economyShare,
+    premium: base.premium * nonEconomyScale,
+    business: base.business * nonEconomyScale,
+    first: base.first * nonEconomyScale
+  };
+}
+
+// Total weekly demand (existing gravity model) split into per-class pax buckets.
+function computeDemandByClass(originAirport, destAirport, distanceKm) {
+  const total = computeDemandWeekly(originAirport, destAirport, distanceKm);
+  const gdp = Math.sqrt(originAirport.gdp_index * destAirport.gdp_index);
+  const tier = routeDemandTier(originAirport, destAirport);
+  const shares = computeClassShares(tier, gdp);
+  const byClass = {};
+  CABIN_CLASSES.forEach(cls => { byClass[cls] = Math.round(total * shares[cls]); });
+  return { total, byClass, tier, gdp };
+}
+
 // Total seats in a cabin configuration
 function cabinTotalSeats(cabin) {
   return cabin.economy + cabin.premium + cabin.business + cabin.first;
@@ -110,32 +146,65 @@ function computeAssignmentEconomics(assignment, route, aircraft) {
 }
 
 // ---------------------------------------------------------
-// Apply shared demand/load/fare/revenue across all assignments on the same O-D pair.
-// `assignments` is the flat list of all assignment objects sharing this route pair.
-// Each assignment must already have capacityWeekly + satisfaction computed.
+// Apply shared per-class demand/load/fare/revenue across all assignments on
+// the same O-D pair. `assignments` is the flat list of all assignment
+// objects sharing this route pair. Each assignment must already have
+// capacityWeekly + satisfaction computed.
+// `demandInfo` is the object returned by computeDemandByClass: { total, byClass }.
 // ---------------------------------------------------------
-function applyGroupEconomics(assignments, demand) {
-  const totalCapacity = assignments.reduce((s, a) => s + (a.capacityWeekly || 0), 0);
-  const baseLoadFactor = totalCapacity > 0 ? Math.min(1, demand / totalCapacity) : 0;
+function applyGroupEconomics(assignments, demandInfo) {
+  const byClass = demandInfo.byClass;
+
+  // Group capacity per class — every assignment sharing this O-D pair
+  // competes for the same class-specific demand pool.
+  const groupCapacityByClass = {};
+  CABIN_CLASSES.forEach(cls => {
+    groupCapacityByClass[cls] = assignments.reduce((s, a) => {
+      const aircraft = gameState.fleet.find(ac => ac.id === a.aircraftId);
+      if (!aircraft) return s;
+      return s + (aircraft.cabin[cls] || 0) * (a.weeklyFrequency || 0) * 2;
+    }, 0);
+  });
+
+  const baseLoadFactorByClass = {};
+  CABIN_CLASSES.forEach(cls => {
+    baseLoadFactorByClass[cls] = groupCapacityByClass[cls] > 0
+      ? Math.min(1, (byClass[cls] || 0) / groupCapacityByClass[cls])
+      : 0;
+  });
 
   assignments.forEach(asn => {
-    const route = gameState.routes.find(r => r.assignments.some(a => a.id === asn.id));
     const aircraft = gameState.fleet.find(a => a.id === asn.aircraftId);
     if (!aircraft) return;
 
-    asn.demandWeekly = demand;
-    asn.loadFactor = Math.max(0, Math.min(1, baseLoadFactor * (asn.satisfaction || 1)));
+    asn.demandWeekly = demandInfo.total;
+    asn.demandByClass = byClass;
+    asn.groupCapacityByClass = groupCapacityByClass;
 
     const fareMult = asn.fareMultiplier || 1;
     asn.fares = {};
-    let revenue = 0;
-    for (const cls of ['economy', 'premium', 'business', 'first']) {
+    asn.loadFactorByClass = {};
+    asn.seatsByClassWeekly = {};
+
+    let ownSeats = 0, ownLoadedSeats = 0, revenue = 0;
+    CABIN_CLASSES.forEach(cls => {
+      const lf = Math.max(0, Math.min(1, baseLoadFactorByClass[cls] * (asn.satisfaction || 1)));
+      asn.loadFactorByClass[cls] = lf;
+
       const seatsPerWeek = aircraft.cabin[cls] * asn.weeklyFrequency * 2;
+      asn.seatsByClassWeekly[cls] = seatsPerWeek;
       const fare = fareForClass(cls, asn.distanceKm, aircraft.cabinQuality) * fareMult;
       asn.fares[cls] = fare;
-      revenue += seatsPerWeek * asn.loadFactor * fare;
-    }
+
+      revenue += seatsPerWeek * lf * fare;
+      ownSeats += seatsPerWeek;
+      ownLoadedSeats += seatsPerWeek * lf;
+    });
+
     asn.revenueWeekly = revenue;
+    // Blended overall load factor across this assignment's own cabin mix
+    // (kept for existing UI: per-aircraft load bar, route avgLoadFactor rollup).
+    asn.loadFactor = ownSeats > 0 ? ownLoadedSeats / ownSeats : 0;
   });
 }
 
@@ -153,8 +222,8 @@ function recomputeRouteLoadFactors() {
     const origin = AIRPORTS.find(a => a.iata === route.originIata);
     const dest = AIRPORTS.find(a => a.iata === route.destIata);
     const distance = haversineKm(origin.lat, origin.lon, dest.lat, dest.lon);
-    const demand = computeDemandWeekly(origin, dest, distance);
-    applyGroupEconomics(assignments, demand);
+    const demandInfo = computeDemandByClass(origin, dest, distance);
+    applyGroupEconomics(assignments, demandInfo);
   });
 }
 
@@ -208,6 +277,9 @@ function refreshRouteTotals(route) {
     route.avgLoadFactor = 0;
     route.distanceKm = 0;
     route.flightTimeMin = 0;
+    route.demandByClass = { economy: 0, premium: 0, business: 0, first: 0 };
+    route.totalCapacityByClass = { economy: 0, premium: 0, business: 0, first: 0 };
+    route.avgLoadFactorByClass = { economy: 0, premium: 0, business: 0, first: 0 };
     return;
   }
   route.totalCapacityWeekly = asns.reduce((s, a) => s + (a.capacityWeekly || 0), 0);
@@ -222,6 +294,19 @@ function refreshRouteTotals(route) {
   // Distance/flightTime are the same for all assignments on same route
   route.distanceKm = asns[0].distanceKm || 0;
   route.flightTimeMin = asns[0].flightTimeMin || 0;
+
+  // Per-class demand (shared across the O-D group, same for every assignment here)
+  // and this route's own slice of capacity per class (this route's assignments only).
+  route.demandByClass = asns[0].demandByClass || { economy: 0, premium: 0, business: 0, first: 0 };
+  route.totalCapacityByClass = {};
+  route.avgLoadFactorByClass = {};
+  CABIN_CLASSES.forEach(cls => {
+    const cap = asns.reduce((s, a) => s + (a.seatsByClassWeekly?.[cls] || 0), 0);
+    route.totalCapacityByClass[cls] = cap;
+    route.avgLoadFactorByClass[cls] = cap > 0
+      ? asns.reduce((s, a) => s + (a.loadFactorByClass?.[cls] || 0) * (a.seatsByClassWeekly?.[cls] || 0), 0) / cap
+      : 0;
+  });
 }
 
 // Recompute every route in the game.
@@ -248,7 +333,7 @@ function previewAssignmentEconomics(tempAsn, route, excludeAsnId) {
   const origin = AIRPORTS.find(a => a.iata === route.originIata);
   const dest = AIRPORTS.find(a => a.iata === route.destIata);
   const distance = haversineKm(origin.lat, origin.lon, dest.lat, dest.lon);
-  const demand = computeDemandWeekly(origin, dest, distance);
+  const demandInfo = computeDemandByClass(origin, dest, distance);
 
   // Gather all existing assignments on this pair (excluding the one being edited)
   const others = [];
@@ -256,7 +341,7 @@ function previewAssignmentEconomics(tempAsn, route, excludeAsnId) {
     if (routePairKey(r) !== key) return;
     r.assignments.forEach(a => { if (a.id !== excludeAsnId) others.push(a); });
   });
-  applyGroupEconomics([...others, tempAsn], demand);
+  applyGroupEconomics([...others, tempAsn], demandInfo);
 
   // Compute maintenance for this aircraft
   const quality = CABIN_QUALITIES[aircraft.cabinQuality] || CABIN_QUALITIES.standard;
