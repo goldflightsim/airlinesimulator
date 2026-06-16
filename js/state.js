@@ -22,6 +22,7 @@ let storeView = { manufacturer: null, family: null };
 let purchaseDraft = null;
 let routeDraft = null;
 let cabinEditDraft = null;
+let asnEditDraft = null;
 
 // ---------------------------------------------------------
 // Setup form
@@ -117,8 +118,7 @@ function createAircraftInstance(spec, opts = {}) {
     cabinQuality: opts.cabinQuality || 'standard',
     homeBase: opts.homeBase || gameState.airline.hubIata,
     registrationPrefix: opts.registrationPrefix || prefix,
-    registration: opts.registration || generateRegistration(countryCode, condition),
-    routeIds: []
+    registration: opts.registration || generateRegistration(countryCode, condition)
   };
 }
 
@@ -133,7 +133,7 @@ function startNewGame() {
   const hubIata = document.getElementById('setup-hub').value;
 
   gameState = {
-    meta: { version: 3 },
+    meta: { version: 2 },
     airline: {
       name, countryCode, countryName, hubIata,
       hubs: [hubIata],
@@ -214,6 +214,8 @@ function migrateGameState() {
       const base = ac.purchasedAtMinute || 0;
       ac.agingResetAtMinute = base - ageYears * AGING_YEAR_MINUTES;
     }
+    // Remove legacy routeIds field
+    delete ac.routeIds;
   });
 
   // Used market registrations
@@ -227,43 +229,43 @@ function migrateGameState() {
     });
   }
 
-  gameState.meta = gameState.meta || {};
-  if (gameState.meta.version === undefined) gameState.meta.version = 1;
+  // Migrate v2 per-aircraft routes to v3 decoupled route + assignments model.
+  // Old shape: { id, aircraftId, originIata, destIata, weeklyFrequency, fareMultiplier, ... }
+  // New shape: { id, originIata, destIata, assignments: [{ id, aircraftId, weeklyFrequency, fareMultiplier }] }
+  const version = gameState.meta?.version ?? 2;
+  if (version < 3 && Array.isArray(gameState.routes)) {
+    const routeMap = new Map(); // key = "ORIG-DEST" -> route object
+    const newRoutes = [];
 
-  // Route model refactor: routes used to be one-per-aircraft
-  // ({ aircraftId, weeklyFrequency, fareMultiplier, ... }). Merge any such
-  // legacy routes sharing an origin-destination pair into a single route
-  // record with an `assignments` array.
-  if (gameState.meta.version < 3) {
-    const merged = [];
     gameState.routes.forEach(old => {
-      let route = merged.find(r =>
-        (r.originIata === old.originIata && r.destIata === old.destIata) ||
-        (r.originIata === old.destIata && r.destIata === old.originIata)
-      );
-      if (!route) {
-        route = {
-          id: old.id,
+      // If it already has assignments array it was already migrated
+      if (Array.isArray(old.assignments)) { newRoutes.push(old); return; }
+
+      const key = [old.originIata, old.destIata].sort().join('-');
+      if (!routeMap.has(key)) {
+        const route = {
+          id: 'RT' + Math.random().toString(36).slice(2, 8).toUpperCase(),
           originIata: old.originIata,
           destIata: old.destIata,
-          fareMultiplier: old.fareMultiplier || 1,
-          assignments: [],
-          createdAtMinute: old.createdAtMinute || 0
+          createdAtMinute: old.createdAtMinute || 0,
+          assignments: []
         };
-        merged.push(route);
+        routeMap.set(key, route);
+        newRoutes.push(route);
       }
-      if (old.aircraftId) {
-        route.assignments.push({ aircraftId: old.aircraftId, weeklyFrequency: old.weeklyFrequency || 1 });
-      }
+      const route = routeMap.get(key);
+      route.assignments.push({
+        id: 'ASN' + Math.random().toString(36).slice(2, 8).toUpperCase(),
+        aircraftId: old.aircraftId,
+        weeklyFrequency: old.weeklyFrequency || 7,
+        fareMultiplier: old.fareMultiplier || 1
+      });
     });
-    gameState.routes = merged;
 
-    // Rebuild each aircraft's routeIds from the merged routes.
-    gameState.fleet.forEach(ac => {
-      ac.routeIds = gameState.routes.filter(r => r.assignments.some(a => a.aircraftId === ac.id)).map(r => r.id);
-    });
+    gameState.routes = newRoutes;
   }
 
+  gameState.meta = gameState.meta || {};
   gameState.meta.version = 3;
 }
 
