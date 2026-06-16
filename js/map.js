@@ -31,10 +31,31 @@ function initMap() {
     if (e.target.checked) map.addLayer(routeLayer);
     else map.removeLayer(routeLayer);
   });
+  const foreignToggle = document.getElementById('toggle-foreign-airports');
+  foreignToggle.checked = !!gameState.ui?.showForeignAirports;
+  foreignToggle.addEventListener('change', (e) => {
+    gameState.ui.showForeignAirports = e.target.checked;
+    saveGame();
+    renderAirportMarkers();
+  });
 
   refreshMapMarkers();
 
   setTimeout(() => map.invalidateSize(), 100);
+}
+
+// An airport outside the player's home country is only shown if the
+// foreign-airports toggle is on, OR the airport is already in active use
+// (hub, fleet home base, or has a route) — so existing operations never
+// disappear just because the toggle is off. Purely data-driven off
+// country_code; works automatically as new countries are added.
+function isAirportVisible(a) {
+  if (a.country_code === gameState.airline.countryCode) return true;
+  if (gameState.ui?.showForeignAirports) return true;
+  if (gameState.airline.hubs.includes(a.iata)) return true;
+  if (gameState.fleet.some(ac => ac.homeBase === a.iata)) return true;
+  if (gameState.routes.some(r => r.originIata === a.iata || r.destIata === a.iata)) return true;
+  return false;
 }
 
 // Draw/redraw airport markers (hubs highlighted, click-to-purchase popup).
@@ -45,6 +66,7 @@ function renderAirportMarkers() {
   const zoom = map.getZoom();
 
   AIRPORTS.forEach(a => {
+    if (!isAirportVisible(a)) return;
     const minZoom = AIRPORT_SIZE_MIN_ZOOM[a.size] ?? 0;
     const isHub = gameState.airline.hubs.includes(a.iata);
     if (!isHub && zoom < minZoom) return;

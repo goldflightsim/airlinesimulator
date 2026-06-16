@@ -143,6 +143,7 @@ function startNewGame() {
     finance: { cash: STARTING_CASH, lastCashUpdateDay: 0 },
     time: { totalMinutes: 0 },
     sim: { speed: 1, running: false },
+    ui: { showForeignAirports: false },
     fleet: [],
     routes: []
   };
@@ -263,6 +264,11 @@ function migrateGameState() {
     });
 
     gameState.routes = newRoutes;
+  }
+
+  // UI prefs (saves predating the foreign-airports toggle)
+  if (!gameState.ui) {
+    gameState.ui = { showForeignAirports: false };
   }
 
   gameState.meta = gameState.meta || {};
