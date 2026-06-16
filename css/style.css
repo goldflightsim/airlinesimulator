@@ -970,19 +970,53 @@ select:focus, input:focus, button:focus-visible {
 
 .route-stats b { color: var(--text); display: block; font-size: 13px; }
 
-.route-card .load-bar {
+.load-bar {
   height: 6px;
   border-radius: 3px;
   background: var(--bg-deep);
   border: 1px solid var(--border);
   overflow: hidden;
+}
+
+.load-bar > div {
+  height: 100%;
+  background: var(--cyan);
+}
+
+.route-card .load-bar {
   margin-top: 4px;
   width: 120px;
 }
 
-.route-card .load-bar > div {
-  height: 100%;
-  background: var(--cyan);
+/* Per-class served/demand mini rows (routes list card) */
+.route-class-demand {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.route-class-demand .rcd-row {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.route-class-demand .rcd-row b {
+  color: var(--text);
+  font-size: 11px;
+  width: 14px;
+}
+
+.route-class-demand .rcd-row .rcd-val {
+  min-width: 70px;
+}
+
+.route-class-demand .rcd-caption {
+  margin-top: 1px;
+  color: var(--text-dim);
 }
 
 .route-card .route-meta {
@@ -1160,7 +1194,7 @@ select:focus, input:focus, button:focus-visible {
 
 .rp-section-grid {
   display: grid;
-  grid-template-columns: 1fr;
+  grid-template-columns: 1fr 1fr;
   gap: 16px;
 }
 
