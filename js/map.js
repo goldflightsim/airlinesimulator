@@ -80,54 +80,6 @@ function renderAirportMarkers() {
   });
 }
 
-// ---------------------------------------------------------
-// Route detail mini-map (origin/destination + great-circle line)
-// ---------------------------------------------------------
-let routeDetailMap = null;
-let routeDetailMapLayer = null;
-
-function initRouteDetailMap() {
-  if (routeDetailMap) return;
-  routeDetailMap = L.map('route-detail-map', {
-    zoomControl: true,
-    attributionControl: false,
-    worldCopyJump: true
-  }).setView([0, 0], 2);
-
-  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-    maxZoom: 19,
-    subdomains: 'abcd'
-  }).addTo(routeDetailMap);
-
-  routeDetailMapLayer = L.layerGroup().addTo(routeDetailMap);
-}
-
-function renderRouteDetailMap(route) {
-  if (!routeDetailMap) initRouteDetailMap();
-  routeDetailMapLayer.clearLayers();
-
-  const origin = AIRPORTS.find(a => a.iata === route.originIata);
-  const dest = AIRPORTS.find(a => a.iata === route.destIata);
-  if (!origin || !dest) return;
-
-  [origin, dest].forEach(a => {
-    const isHub = gameState.airline.hubs.includes(a.iata);
-    const icon = L.divIcon({
-      className: 'airport-marker' + (isHub ? ' hub' : ''),
-      iconSize: [isHub ? 16 : 12, isHub ? 16 : 12],
-      html: ''
-    });
-    L.marker([a.lat, a.lon], { icon }).bindPopup(`<b>${a.iata}</b> — ${a.city}, ${a.country}`).addTo(routeDetailMapLayer);
-  });
-
-  L.polyline([[origin.lat, origin.lon], [dest.lat, dest.lon]], {
-    color: '#4dd8c8', weight: 2, opacity: 0.7, dashArray: '4,4'
-  }).addTo(routeDetailMapLayer);
-
-  routeDetailMap.fitBounds(L.latLngBounds([[origin.lat, origin.lon], [dest.lat, dest.lon]]), { padding: [40, 40] });
-  setTimeout(() => routeDetailMap.invalidateSize(), 50);
-}
-
 // Purchase a new hub at the given airport (costs HUB_COST).
 function purchaseHub(iata) {
   if (gameState.airline.hubs.includes(iata)) return;
@@ -176,7 +128,7 @@ function refreshMapMarkers() {
     const line = L.polyline([[origin.lat, origin.lon], [dest.lat, dest.lon]], {
       color: '#4dd8c8', weight: 1.5, opacity: 0.55, dashArray: '4,4'
     });
-    line.bindPopup(`<b>${route.originIata} &rarr; ${route.destIata}</b><br>${formatNumber(route.distanceKm)} km &middot; ${route.weeklyFrequency}x/week`);
+    line.bindPopup(`<b>${route.originIata} &rarr; ${route.destIata}</b><br>${formatNumber(route.distanceKm || 0)} km &middot; ${route.totalFrequency || 0}x/week &middot; ${route.assignments.length} aircraft`);
     line.addTo(routeLayer);
   });
 }
