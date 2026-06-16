@@ -5,50 +5,75 @@
 // directly as a local file).
 
 const AIRPORTS_CSV = `iata,icao,name,city,country,country_code,lat,lon,population,gdp_index,runway_m,size
-JFK,KJFK,John F. Kennedy International,New York,United States,US,40.6413,-73.7781,20000000,1.00,4423,major
-LHR,EGLL,Heathrow,London,United Kingdom,GB,51.4700,-0.4543,9300000,0.88,3902,major
-DXB,OMDB,Dubai International,Dubai,United Arab Emirates,AE,25.2532,55.3657,3500000,1.10,4447,major
-HND,RJTT,Haneda,Tokyo,Japan,JP,35.5494,139.7798,37000000,0.92,3000,major
-CDG,LFPG,Charles de Gaulle,Paris,France,FR,49.0097,2.5479,11000000,0.85,4215,major
-FRA,EDDF,Frankfurt,Frankfurt,Germany,DE,50.0379,8.5622,5800000,0.90,4000,major
-SIN,WSSS,Changi,Singapore,Singapore,SG,1.3644,103.9915,5900000,1.30,4000,major
-LAX,KLAX,Los Angeles International,Los Angeles,United States,US,33.9416,-118.4085,13000000,1.00,3939,major
-PEK,ZBAA,Beijing Capital International,Beijing,China,CN,40.0799,116.6031,21500000,0.40,3800,major
-JNB,FAOR,OR Tambo International,Johannesburg,South Africa,ZA,-26.1392,28.2460,5600000,0.28,4418,major
-GRU,SBGR,Sao Paulo-Guarulhos International,Sao Paulo,Brazil,BR,-23.4356,-46.4731,22000000,0.45,3700,major
-CGH,SBSP,Congonhas,Sao Paulo,Brazil,BR,-23.6261,-46.6554,22000000,0.45,1940,major
-GIG,SBGL,Rio de Janeiro-Galeao International,Rio de Janeiro,Brazil,BR,-22.8099,-43.2506,13500000,0.45,4000,major
-SDU,SBRJ,Santos Dumont,Rio de Janeiro,Brazil,BR,-22.9105,-43.1631,13500000,0.45,1323,regional
-BSB,SBBR,Brasilia International,Brasilia,Brazil,BR,-15.8697,-47.9208,4800000,0.50,3199,major
-CNF,SBCF,Tancredo Neves International,Belo Horizonte,Brazil,BR,-19.6336,-43.9686,6000000,0.45,3000,major
-POA,SBPA,Salgado Filho International,Porto Alegre,Brazil,BR,-29.9939,-51.1714,4300000,0.48,2280,major
-CWB,SBCT,Afonso Pena International,Curitiba,Brazil,BR,-25.5285,-49.1758,3700000,0.50,2218,major
-SSA,SBSV,Deputado Luis Eduardo Magalhaes International,Salvador,Brazil,BR,-12.9086,-38.3225,3900000,0.40,3003,major
-REC,SBRF,Guararapes-Gilberto Freyre International,Recife,Brazil,BR,-8.1264,-34.9236,4200000,0.40,3005,major
-FOR,SBFZ,Pinto Martins International,Fortaleza,Brazil,BR,-3.7763,-38.5326,4100000,0.38,3010,major
-BEL,SBBE,Val de Cans International,Belem,Brazil,BR,-1.3792,-48.4763,2500000,0.35,2700,regional
-MAO,SBEG,Eduardo Gomes International,Manaus,Brazil,BR,-3.0386,-60.0497,2250000,0.38,2700,regional
-CGB,SBCY,Marechal Rondon International,Cuiaba,Brazil,BR,-15.6529,-56.1167,700000,0.42,2745,regional
-GYN,SBGO,Santa Genoveva,Goiania,Brazil,BR,-16.6320,-49.2207,1500000,0.42,2700,regional
-VCP,SBKP,Viracopos International,Campinas,Brazil,BR,-23.0074,-47.1345,1200000,0.50,3240,major
-FLN,SBFL,Hercilio Luz International,Florianopolis,Brazil,BR,-27.6705,-48.5475,1100000,0.48,2050,regional
-NAT,SBSG,Augusto Severo International,Natal,Brazil,BR,-5.7689,-35.3768,900000,0.38,2700,regional
-MCZ,SBMO,Zumbi dos Palmares International,Maceio,Brazil,BR,-9.5108,-35.7917,1100000,0.36,2200,regional
-JPA,SBJP,Presidente Castro Pinto International,Joao Pessoa,Brazil,BR,-7.1454,-34.9486,830000,0.36,2480,regional
-THE,SBTE,Senador Petronio Portella,Teresina,Brazil,BR,-5.0599,-42.8237,870000,0.34,1750,regional
-SLZ,SBSL,Marechal Cunha Machado International,Sao Luis,Brazil,BR,-2.5854,-44.2342,1100000,0.34,2400,regional
-PVH,SBPV,Governador Jorge Teixeira de Oliveira International,Porto Velho,Brazil,BR,-8.7093,-63.9024,530000,0.36,2230,regional
-RBR,SBRB,Placido de Castro International,Rio Branco,Brazil,BR,-9.8689,-67.8989,410000,0.36,2200,regional
-BVB,SBBV,Atlas Brasil Cantanhede International,Boa Vista,Brazil,BR,2.8413,-60.6920,420000,0.34,2500,regional
-MCP,SBMQ,Alberto Alcolumbre International,Macapa,Brazil,BR,0.0506,-51.0722,510000,0.34,2250,regional
-AJU,SBAR,Santa Maria,Aracaju,Brazil,BR,-10.9839,-37.0703,660000,0.38,2400,regional
-IOS,SBIL,Bahia-Eduardo Gomes,Ilheus,Brazil,BR,-14.8158,-39.0332,180000,0.36,1750,regional
-UDI,SBUL,Ten. Cel. Av. Cesar Bombonato,Uberlandia,Brazil,BR,-18.8828,-48.2256,700000,0.46,2940,regional
-JOI,SBJV,Lauro Carneiro de Loyola,Joinville,Brazil,BR,-26.2245,-48.7975,600000,0.50,1980,regional`;
+GRU,SBGR,São Paulo-Guarulhos International Airport,São Paulo,Brazil,BR,-23.4356,-46.4731,12330000,1,3700,major
+CGH,SBSP,Congonhas Airport,São Paulo,Brazil,BR,-23.6261,-46.6564,12330000,1,1940,major
+GIG,SBGL,Galeão International Airport,Rio de Janeiro,Brazil,BR,-22.81,-43.2506,6748000,1,4000,major
+SDU,SBRJ,Santos Dumont Airport,Rio de Janeiro,Brazil,BR,-22.9102,-43.1631,6748000,1,1323,large
+BSB,SBBR,Brasília International Airport,Brasília,Brazil,BR,-15.8697,-47.9172,3055000,1,3300,major
+VCP,SBKP,Viracopos International Airport,Campinas,Brazil,BR,-23.0074,-47.1344,1214000,1,3240,major
+CNF,SBCF,Belo Horizonte-Confins International Airport,Belo Horizonte,Brazil,BR,-19.6244,-43.9719,2722000,1,3600,major
+CWB,SBCT,Afonso Pena International Airport,Curitiba,Brazil,BR,-25.5317,-49.1761,1964000,1,2218,large
+POA,SBPA,Salgado Filho International Airport,Porto Alegre,Brazil,BR,-29.9939,-51.1711,1488000,1,3200,large
+REC,SBRF,Recife/Guararapes International Airport,Recife,Brazil,BR,-8.1264,-34.9228,1653000,1,3007,major
+SSA,SBSV,Salvador International Airport,Salvador,Brazil,BR,-12.9086,-38.3225,2886000,1,3005,large
+FOR,SBFZ,Fortaleza International Airport,Fortaleza,Brazil,BR,-3.7761,-38.5325,2687000,1,2755,large
+MAO,SBEG,Eduardo Gomes International Airport,Manaus,Brazil,BR,-3.0386,-60.0506,2219000,1,2700,large
+BEL,SBBE,Val-de-Cans International Airport,Belém,Brazil,BR,-1.3792,-48.4762,1500000,1,2800,large
+GYN,SBGO,Goiânia International Airport,Goiânia,Brazil,BR,-16.6325,-49.2211,1536000,1,2500,regional
+VIX,SBVT,Eurico de Aguiar Salles Airport,Vitória,Brazil,BR,-20.2581,-40.2864,365855,1,2058,regional
+FLN,SBFL,Florianópolis International Airport,Florianópolis,Brazil,BR,-27.6703,-48.5461,508826,1,2400,regional
+CGB,SBCY,Marechal Rondon International Airport,Cuiabá,Brazil,BR,-15.6528,-56.1167,618124,1,2300,regional
+CGR,SBCG,Campo Grande International Airport,Campo Grande,Brazil,BR,-20.4686,-54.6725,897938,1,2600,regional
+MCZ,SBMO,Zumbi dos Palmares International Airport,Maceió,Brazil,BR,-9.5108,-35.7917,1025360,1,2601,regional
+NAT,SBSG,Natal International Airport,Natal,Brazil,BR,-5.7689,-35.3664,890480,1,3000,regional
+SLZ,SBSL,Marechal Cunha Machado International Airport,São Luís,Brazil,BR,-2.5869,-44.2361,1108975,1,2340,regional
+SJK,SBSJ,São José dos Campos Airport,São José dos Campos,Brazil,BR,-23.2289,-45.8711,729737,0.9,2676,regional
+JOI,SBJV,Joinville-Lauro Carneiro de Loyola Airport,Joinville,Brazil,BR,-26.2231,-48.7978,597658,0.8,1640,regional
+NVT,SBNF,Ministro Victor Konder International Airport,Navegantes,Brazil,BR,-26.8786,-48.6514,83626,1,1701,regional
+RAO,SBRP,Ribeirão Preto State Airport,Ribeirão Preto,Brazil,BR,-21.1364,-47.7767,711825,0.9,2100,regional
+UDI,SBUL,Uberlândia Airport,Uberlândia,Brazil,BR,-18.8836,-48.2253,699097,0.8,2100,regional
+LDB,SBLO,Londrina Airport,Londrina,Brazil,BR,-23.3303,-51.1303,575377,0.8,2100,regional
+IGU,SBFI,Foz do Iguaçu International Airport,Foz do Iguaçu,Brazil,BR,-25.5978,-54.4858,258248,0.9,2195,regional
+BVB,SBBV,Boa Vista International Airport,Boa Vista,Brazil,BR,2.8414,-60.6922,419659,1,2700,regional
+PMW,SBPJ,Palmas Brigadeiro Lysias Rodrigues Airport,Palmas,Brazil,BR,-10.29,-48.3578,306296,1,2500,regional
+RBR,SBRB,Rio Branco International Airport,Rio Branco,Brazil,BR,-9.9522,-67.8944,413417,1,2158,regional
+PVH,SBPV,Porto Velho International Airport,Porto Velho,Brazil,BR,-8.7094,-63.9025,539354,1,2400,regional
+MCP,SBMQ,Macapá International Airport,Macapá,Brazil,BR,0.0508,-51.0703,512902,0.8,2100,regional
+AJU,SBAR,Aracaju-Santa Maria Airport,Aracaju,Brazil,BR,-10.9847,-37.0733,664908,0.9,2200,regional
+THE,SBTE,Teresina Airport,Teresina,Brazil,BR,-5.0606,-42.8244,868075,0.9,2200,regional
+JPA,SBJP,João Pessoa Airport,João Pessoa,Brazil,BR,-7.1483,-34.9503,817511,1,2515,regional
+BPS,SBPS,Porto Seguro Airport,Porto Seguro,Brazil,BR,-16.4378,-39.0778,150658,1,2000,regional
+IOS,SBIL,Ilhéus Jorge Amado Airport,Ilhéus,Brazil,BR,-14.8153,-39.0331,159923,1,1577,regional
+JDO,SBJU,Juazeiro do Norte Airport,Juazeiro do Norte,Brazil,BR,-7.2186,-39.2703,276264,0.8,1800,regional
+CPV,SBKG,Campina Grande Airport,Campina Grande,Brazil,BR,-7.2694,-35.8892,411807,0.8,1600,regional
+MOC,SBMK,Montes Claros Airport,Montes Claros,Brazil,BR,-16.7061,-43.8219,413487,0.8,2100,regional
+SJP,SBSR,São José do Rio Preto Airport,São José do Rio Preto,Brazil,BR,-20.8161,-49.4056,464983,0.8,1640,regional
+PMG,SBPP,Ponta Porã International Airport,Ponta Porã,Brazil,BR,-22.5494,-55.7033,92526,0.8,2000,regional
+STM,SBSN,Santarém International Airport,Santarém,Brazil,BR,-2.4247,-54.7869,306480,0.8,2400,regional
+MAB,SBMA,Marabá Airport,Marabá,Brazil,BR,-5.3686,-49.1381,283542,0.8,2000,regional
+CZS,SBCZ,Cruzeiro do Sul International Airport,Cruzeiro do Sul,Brazil,BR,-7.5994,-72.7686,89072,0.8,2400,regional
+PHB,SBPI,Parnaíba International Airport,Parnaíba,Brazil,BR,-2.8933,-41.7317,153075,0.8,2500,regional
+PET,SBPK,Pelotas International Airport,Pelotas,Brazil,BR,-31.7178,-52.3283,343132,0.8,1980,regional
+CXJ,SBCX,Hugo Cantergiani Regional Airport,Caxias do Sul,Brazil,BR,-29.1956,-51.1889,517451,0.8,1670,regional
+XAP,SBCH,Chapecó Airport,Chapecó,Brazil,BR,-27.1339,-52.6564,224013,0.8,2063,regional
+JJG,SBJA,Humberto Ghizzo Bortoluzzi Regional Airport,Jaguaruna,Brazil,BR,-28.6739,-49.0667,20235,0.8,2500,regional
+SMG,SBSM,Santa Maria Airport,Santa Maria,Brazil,BR,-29.7114,-53.6881,283677,0.8,2700,regional
+URG,SBUG,Ruben Berta International Airport,Uruguaiana,Brazil,BR,-29.7825,-57.0367,126866,0.8,1500,regional
+IMP,SBIZ,Imperatriz Airport,Imperatriz,Brazil,BR,-5.5306,-47.4586,259980,0.8,1796,regional
+MGF,SBMG,Maringá Regional Airport,Maringá,Brazil,BR,-23.4794,-52.0122,430154,0.8,2100,regional
+CAC,SBCA,Cascavel Airport,Cascavel,Brazil,BR,-24.9892,-53.5008,332333,0.8,1780,regional
+IPN,SBIP,Usiminas Airport,Ipatinga,Brazil,BR,-19.4697,-42.4878,265409,0.8,2004,regional
+JTC,SBBU,Bauru-Arealva State Airport,Bauru,Brazil,BR,-22.1578,-49.0683,379297,0.8,2100,regional
+VAG,SBVG,Varginha Major Brigadeiro Trompowsky Airport,Varginha,Brazil,BR,-21.5903,-45.4731,136602,0.8,2100,regional
+JFK,KJFK,John F. Kennedy International Airport,New York,United States,US,40.6398,-73.7789,8336000,1.5,4423,major
+LHR,EGLL,London Heathrow Airport,London,United Kingdom,GB,51.47,-0.4543,8982000,1.5,3902,major
+CDG,LFPG,Charles de Gaulle Airport,Paris,France,FR,49.0097,2.5479,2148000,1.5,4215,major
+EZE,SAEZ,Ministro Pistarini International Airport,Buenos Aires,Argentina,AR,-34.8222,-58.5358,3008000,1.5,3300,large
+MIA,KMIA,Miami International Airport,Miami,United States,US,25.7933,-80.2906,442241,1.5,3962,major`;
 
 const AIRPLANES_CSV = `manufacturer,family,model,category,max_capacity,range_km,cruise_kmh,fuel_burn_kgph,min_runway_m,price_new_usd
-Airbus,A220,A220-100,regional,133,5460,830,1900,1463,42000000
-Airbus,A220,A220-300,regional,160,6300,830,2100,1690,48000000
+Airbus,A220,A220-100,large,133,5460,830,1900,1463,42000000
+Airbus,A220,A220-300,large,160,6300,830,2100,1690,48000000
 Airbus,A320,A319,narrowbody,156,6850,828,2400,1850,50000000
 Airbus,A320,A320,narrowbody,195,6300,828,2500,2100,58000000
 Airbus,A320,A320neo,narrowbody,195,6500,833,2200,1600,68000000
@@ -76,15 +101,15 @@ Boeing,777,777-9,widebody,426,13550,905,7400,3100,370000000
 Boeing,787,787-8,widebody,242,13530,903,5400,2600,200000000
 Boeing,787,787-9,widebody,290,14140,903,5700,2800,230000000
 Boeing,787,787-10,widebody,330,11750,903,6000,2800,260000000
-Embraer,ERJ,ERJ145,regional,50,2800,750,1200,1600,18000000
-Embraer,E1,E175,regional,88,3700,828,1700,1450,30000000
-Embraer,E1,E190,regional,106,4537,829,1900,1600,38000000
-Embraer,E1,E195,regional,124,4260,829,2000,1650,42000000
-Embraer,E2,E175-E2,regional,90,3735,833,1600,1370,40000000
-Embraer,E2,E190-E2,regional,114,5278,833,1750,1450,48000000
-Embraer,E2,E195-E2,regional,146,4800,833,1850,1600,54000000
-Comac,ARJ21,ARJ21-700,regional,90,3700,828,1900,1700,35000000
+Embraer,ERJ,ERJ145,large,50,2800,750,1200,1600,18000000
+Embraer,E1,E175,large,88,3700,828,1700,1450,30000000
+Embraer,E1,E190,large,106,4537,829,1900,1600,38000000
+Embraer,E1,E195,large,124,4260,829,2000,1650,42000000
+Embraer,E2,E175-E2,large,90,3735,833,1600,1370,40000000
+Embraer,E2,E190-E2,large,114,5278,833,1750,1450,48000000
+Embraer,E2,E195-E2,large,146,4800,833,1850,1600,54000000
+Comac,ARJ21,ARJ21-700,large,90,3700,828,1900,1700,35000000
 Comac,C919,C919,narrowbody,158,5555,834,2400,1700,60000000
-Bombardier,CRJ,CRJ700,regional,78,3045,828,1700,1453,25000000
-Bombardier,CRJ,CRJ900,regional,90,2956,870,1850,1719,32000000
-Bombardier,CRJ,CRJ1000,regional,104,3004,870,2000,1850,36000000`;
+Bombardier,CRJ,CRJ700,large,78,3045,828,1700,1453,25000000
+Bombardier,CRJ,CRJ900,large,90,2956,870,1850,1719,32000000
+Bombardier,CRJ,CRJ1000,large,104,3004,870,2000,1850,36000000`;

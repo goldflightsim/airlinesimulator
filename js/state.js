@@ -22,6 +22,7 @@ let storeView = { manufacturer: null, family: null };
 let purchaseDraft = null;
 let routeDraft = null;
 let cabinEditDraft = null;
+let asnEditDraft = null;
 
 // ---------------------------------------------------------
 // Setup form
@@ -77,7 +78,7 @@ function populateHubSelect(countryCode) {
   hubSelect.innerHTML = '';
   const airports = AIRPORTS.filter(a => a.country_code === countryCode)
     .sort((a, b) => {
-      if (a.size !== b.size) return a.size === 'major' ? -1 : 1;
+      if (a.size !== b.size) return (AIRPORT_SIZE_RANK[a.size] ?? 3) - (AIRPORT_SIZE_RANK[b.size] ?? 3);
       return a.iata.localeCompare(b.iata);
     });
   airports.forEach(a => {
@@ -97,6 +98,7 @@ function createAircraftInstance(spec, opts = {}) {
   const countryCode = gameState.airline.countryCode;
   const prefixes = getRegistrationPrefixes(countryCode);
   const prefix = condition === 'used' ? prefixes.used : prefixes.new;
+  const initialAgeYears = opts.ageYears || 0;
   return {
     id: opts.id || ('AC' + Math.random().toString(36).slice(2, 8).toUpperCase()),
     manufacturer: spec.manufacturer,
@@ -110,13 +112,13 @@ function createAircraftInstance(spec, opts = {}) {
     min_runway_m: spec.min_runway_m,
     purchasePrice: spec.price_new_usd,
     purchasedAtMinute: gameState.time.totalMinutes,
+    agingResetAtMinute: gameState.time.totalMinutes - initialAgeYears * AGING_YEAR_MINUTES,
     condition,
     cabin: opts.cabin || { economy: spec.max_capacity, premium: 0, business: 0, first: 0 },
     cabinQuality: opts.cabinQuality || 'standard',
     homeBase: opts.homeBase || gameState.airline.hubIata,
     registrationPrefix: opts.registrationPrefix || prefix,
-    registration: opts.registration || generateRegistration(countryCode, condition),
-    routeIds: []
+    registration: opts.registration || generateRegistration(countryCode, condition)
   };
 }
 
@@ -207,6 +209,13 @@ function migrateGameState() {
       ac.registrationPrefix = prefix;
       ac.registration = generateRegistration(gameState.airline.countryCode, ac.condition);
     }
+    if (ac.agingResetAtMinute === undefined) {
+      const ageYears = ac.ageYears || 0;
+      const base = ac.purchasedAtMinute || 0;
+      ac.agingResetAtMinute = base - ageYears * AGING_YEAR_MINUTES;
+    }
+    // Remove legacy routeIds field
+    delete ac.routeIds;
   });
 
   // Used market registrations
@@ -220,8 +229,44 @@ function migrateGameState() {
     });
   }
 
+  // Migrate v2 per-aircraft routes to v3 decoupled route + assignments model.
+  // Old shape: { id, aircraftId, originIata, destIata, weeklyFrequency, fareMultiplier, ... }
+  // New shape: { id, originIata, destIata, assignments: [{ id, aircraftId, weeklyFrequency, fareMultiplier }] }
+  const version = gameState.meta?.version ?? 2;
+  if (version < 3 && Array.isArray(gameState.routes)) {
+    const routeMap = new Map(); // key = "ORIG-DEST" -> route object
+    const newRoutes = [];
+
+    gameState.routes.forEach(old => {
+      // If it already has assignments array it was already migrated
+      if (Array.isArray(old.assignments)) { newRoutes.push(old); return; }
+
+      const key = [old.originIata, old.destIata].sort().join('-');
+      if (!routeMap.has(key)) {
+        const route = {
+          id: 'RT' + Math.random().toString(36).slice(2, 8).toUpperCase(),
+          originIata: old.originIata,
+          destIata: old.destIata,
+          createdAtMinute: old.createdAtMinute || 0,
+          assignments: []
+        };
+        routeMap.set(key, route);
+        newRoutes.push(route);
+      }
+      const route = routeMap.get(key);
+      route.assignments.push({
+        id: 'ASN' + Math.random().toString(36).slice(2, 8).toUpperCase(),
+        aircraftId: old.aircraftId,
+        weeklyFrequency: old.weeklyFrequency || 7,
+        fareMultiplier: old.fareMultiplier || 1
+      });
+    });
+
+    gameState.routes = newRoutes;
+  }
+
   gameState.meta = gameState.meta || {};
-  gameState.meta.version = 2;
+  gameState.meta.version = 3;
 }
 
 function resetGame() {

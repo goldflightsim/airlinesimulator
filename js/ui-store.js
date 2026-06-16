@@ -356,6 +356,7 @@ function confirmPurchase() {
   if (usedEntry) {
     opts.registration = usedEntry.registration;
     opts.registrationPrefix = usedEntry.registrationPrefix;
+    opts.ageYears = usedEntry.ageYears;
   } else {
     const prefix = getRegistrationPrefixes(gameState.airline.countryCode).new;
     const suffix = (document.getElementById('purchase-reg-suffix')?.value || purchaseDraft.registrationSuffix || randomRegistrationSuffix())

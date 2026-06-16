@@ -110,6 +110,7 @@ function closeModal() {
   routeDraft = null;
   cabinEditDraft = null;
   freqEditDraft = null;
+  asnEditDraft = null;
 }
 
 document.addEventListener('click', (e) => {

@@ -18,10 +18,15 @@ function renderFleetPage() {
 
   gameState.fleet.forEach(ac => {
     const hoursUsed = aircraftWeeklyHoursUsed(ac, null);
-    const routes = gameState.routes.filter(r => r.aircraftId === ac.id);
+    // Find all routes this aircraft has an assignment on
+    const routes = gameState.routes.filter(r => r.assignments.some(a => a.aircraftId === ac.id));
     const seatsTotal = cabinTotalSeats(ac.cabin);
-    const weeklyProfit = routes.reduce((s, r) => s + (r.profitWeekly || 0), 0);
+    const weeklyProfit = routes.reduce((s, r) => {
+      return s + r.assignments.filter(a => a.aircraftId === ac.id).reduce((ss, a) => ss + (a.profitWeekly || 0), 0);
+    }, 0);
     const utilPct = Math.min(100, (hoursUsed / MAX_WEEKLY_HOURS) * 100);
+    const ageYears = getAircraftAgeYears(ac);
+    const agingTier = getAgingTier(ac);
 
     const card = document.createElement('div');
     card.className = 'strip';
@@ -38,6 +43,7 @@ function renderFleetPage() {
       <div class="strip-row"><span class="k">Min. runway</span><span class="v">${formatNumber(ac.min_runway_m)} m</span></div>
       <div class="strip-row"><span class="k">Cabin layout</span><span class="v">${ac.cabin.economy}Y / ${ac.cabin.premium}W / ${ac.cabin.business}J / ${ac.cabin.first}F (${seatsTotal} total)</span></div>
       <div class="strip-row"><span class="k">Cabin quality</span><span class="v">${CABIN_QUALITIES[ac.cabinQuality].label}</span></div>
+      <div class="strip-row"><span class="k">Cabin/aging condition</span><span class="v">${agingTier.label} (${ageYears.toFixed(1)} yr since refit/new)</span></div>
       <div class="strip-row"><span class="k"></span><span class="v">
         <button class="btn" style="padding:2px 8px; font-size:11px;" onclick="openEditCabinModal('${ac.id}')">Edit Cabin &amp; Quality</button>
       </span></div>
@@ -47,6 +53,9 @@ function renderFleetPage() {
       <div class="cabin-units-bar"><div style="width:${utilPct}%; background:var(--cyan);"></div></div>
       <div class="strip-row"><span class="k">Routes</span><span class="v">${routes.length === 0 ? 'None' : routes.map(r => r.originIata + '-' + r.destIata).join(', ')}</span></div>
       ${routes.length > 0 ? `<div class="strip-row"><span class="k">Weekly profit</span><span class="v ${weeklyProfit >= 0 ? 'pos' : 'neg'}">${formatMoney(weeklyProfit)}</span></div>` : ''}
+      <div class="strip-row"><span class="k"></span><span class="v">
+        <button class="btn danger" style="padding:2px 8px; font-size:11px;" onclick="openSellAircraftModal('${ac.id}')">Sell Aircraft</button>
+      </span></div>
     `;
     list.appendChild(card);
   });
@@ -216,6 +225,7 @@ function confirmEditCabin() {
   gameState.finance.cash -= refitCost;
   ac.cabin = { economy, premium: cabin.premium, business: cabin.business, first: cabin.first };
   ac.cabinQuality = quality;
+  ac.agingResetAtMinute = gameState.time.totalMinutes;
 
   recomputeAircraftRoutes(ac.id);
 
@@ -223,6 +233,69 @@ function confirmEditCabin() {
   saveGame();
   renderFleetPage();
   renderRoutesPage();
+  renderOverviewPanel();
+  updateTopbarStats();
+  refreshMapMarkers();
+}
+
+// ---------------------------------------------------------
+// Sell aircraft (60% of purchase price, drops any route assignments)
+// ---------------------------------------------------------
+function openSellAircraftModal(aircraftId) {
+  const ac = gameState.fleet.find(a => a.id === aircraftId);
+  if (!ac) return;
+
+  const sellPrice = Math.round((ac.purchasePrice || 0) * AIRCRAFT_SELL_RATIO);
+  const routes = gameState.routes.filter(r => r.assignments.some(a => a.aircraftId === ac.id));
+
+  openModal(`
+    <h2>Sell Aircraft</h2>
+    <div class="modal-sub">${ac.id} &mdash; ${ac.manufacturer} ${ac.model} (${ac.registration})</div>
+    <div class="field">
+      <div class="strip-row"><span class="k">Purchase price</span><span class="v">${formatMoney(ac.purchasePrice || 0)}</span></div>
+      <div class="strip-row"><span class="k">Sell price (${Math.round(AIRCRAFT_SELL_RATIO * 100)}%)</span><span class="v pos">${formatMoney(sellPrice)}</span></div>
+    </div>
+    ${routes.length > 0 ? `
+      <div class="field">
+        <div style="color:var(--amber); font-size:12px;">
+          This aircraft is assigned to ${routes.length} route${routes.length > 1 ? 's' : ''} (${routes.map(r => r.originIata + '-' + r.destIata).join(', ')}).
+          Selling will remove it from ${routes.length > 1 ? 'these' : 'this'} route${routes.length > 1 ? 's' : ''} automatically.
+        </div>
+      </div>
+    ` : ''}
+    <div class="modal-actions">
+      <div></div>
+      <div>
+        <button class="btn" onclick="closeModal()">Cancel</button>
+        <button class="btn danger" onclick="confirmSellAircraft('${ac.id}')">Confirm Sale</button>
+      </div>
+    </div>
+  `);
+}
+
+function confirmSellAircraft(aircraftId) {
+  const ac = gameState.fleet.find(a => a.id === aircraftId);
+  if (!ac) return;
+
+  const sellPrice = Math.round((ac.purchasePrice || 0) * AIRCRAFT_SELL_RATIO);
+
+  // Drop this aircraft from any route it's assigned to
+  gameState.routes.forEach(route => {
+    route.assignments = route.assignments.filter(a => a.aircraftId !== aircraftId);
+  });
+
+  // Remove from fleet and credit sale proceeds
+  gameState.fleet = gameState.fleet.filter(a => a.id !== aircraftId);
+  gameState.finance.cash += sellPrice;
+
+  // Refresh economics network-wide (shared O-D demand may redistribute)
+  recomputeAllRoutes();
+
+  closeModal();
+  saveGame();
+  renderFleetPage();
+  renderRoutesPage();
+  if (currentRoutePageId) renderIndividualRoutePage();
   renderOverviewPanel();
   updateTopbarStats();
   refreshMapMarkers();

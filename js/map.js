@@ -20,6 +20,7 @@ function initMap() {
   routeLayer = L.layerGroup().addTo(map);
 
   renderAirportMarkers();
+  map.on('zoomend', renderAirportMarkers);
 
   // legend toggles
   document.getElementById('toggle-airports').addEventListener('change', (e) => {
@@ -41,13 +42,19 @@ function renderAirportMarkers() {
   if (!airportLayer) return;
   airportLayer.clearLayers();
 
+  const zoom = map.getZoom();
+
   AIRPORTS.forEach(a => {
+    const minZoom = AIRPORT_SIZE_MIN_ZOOM[a.size] ?? 0;
     const isHub = gameState.airline.hubs.includes(a.iata);
+    if (!isHub && zoom < minZoom) return;
+
     let cls = 'airport-marker';
     if (isHub) cls += ' hub';
+    else if (a.size === 'large') cls += ' large';
     else if (a.size === 'regional') cls += ' regional';
 
-    const size = isHub ? 18 : 12;
+    const size = isHub ? 18 : (a.size === 'major' ? 12 : a.size === 'large' ? 10 : 8);
     const icon = L.divIcon({
       className: cls,
       iconSize: [size, size],
@@ -121,7 +128,7 @@ function refreshMapMarkers() {
     const line = L.polyline([[origin.lat, origin.lon], [dest.lat, dest.lon]], {
       color: '#4dd8c8', weight: 1.5, opacity: 0.55, dashArray: '4,4'
     });
-    line.bindPopup(`<b>${route.originIata} &rarr; ${route.destIata}</b><br>${formatNumber(route.distanceKm)} km &middot; ${route.weeklyFrequency}x/week`);
+    line.bindPopup(`<b>${route.originIata} &rarr; ${route.destIata}</b><br>${formatNumber(route.distanceKm || 0)} km &middot; ${route.totalFrequency || 0}x/week &middot; ${route.assignments.length} aircraft`);
     line.addTo(routeLayer);
   });
 }
