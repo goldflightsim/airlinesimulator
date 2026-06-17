@@ -101,6 +101,7 @@ function showModelList(manufacturer, family) {
 
   const models = AIRPLANES.filter(p => p.manufacturer === manufacturer && p.family === family);
   models.forEach(spec => {
+    const locked = spec.category === 'widebody' && !hasLicense('widebody');
     const card = document.createElement('div');
     card.className = 'model-card';
     card.innerHTML = `
@@ -112,7 +113,9 @@ function showModelList(manufacturer, family) {
         <div><b>${formatNumber(spec.min_runway_m)} m</b>min runway</div>
       </div>
       <div class="model-price">From ${formatMoney(spec.price_new_usd)}</div>
-      <button class="btn primary" onclick='openPurchaseModal(${JSON.stringify(spec)})'>Buy</button>
+      ${locked
+        ? `<button class="btn" disabled>Requires Widebody License</button>`
+        : `<button class="btn primary" onclick='openPurchaseModal(${JSON.stringify(spec)})'>Buy</button>`}
     `;
     list.appendChild(card);
   });
@@ -180,6 +183,7 @@ function renderUsedMarket() {
 
   items.forEach(u => {
     const spec = AIRPLANES.find(p => p.manufacturer === u.manufacturer && p.model === u.model);
+    const locked = spec.category === 'widebody' && !hasLicense('widebody');
     const card = document.createElement('div');
     card.className = 'model-card used';
     card.innerHTML = `
@@ -192,7 +196,9 @@ function renderUsedMarket() {
         <div><b>${formatNumber(spec.range_km)} km</b>range</div>
       </div>
       <div class="model-price">From ${formatMoney(u.price)}</div>
-      <button class="btn primary" onclick='openPurchaseModal(${JSON.stringify(spec)}, ${JSON.stringify(u)})'>Buy</button>
+      ${locked
+        ? `<button class="btn" disabled>Requires Widebody License</button>`
+        : `<button class="btn primary" onclick='openPurchaseModal(${JSON.stringify(spec)}, ${JSON.stringify(u)})'>Buy</button>`}
     `;
     list.appendChild(card);
   });
@@ -340,6 +346,7 @@ function setPurchaseQuality(key) {
 
 function confirmPurchase() {
   const { spec, usedEntry, cabin, quality, homeBase } = purchaseDraft;
+  if (spec.category === 'widebody' && !hasLicense('widebody')) { closeModal(); return; }
   const price = purchaseDraftPrice();
   if (gameState.finance.cash < price) return;
 

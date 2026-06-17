@@ -90,12 +90,19 @@ function renderAirportMarkers() {
       `Runway: ${formatNumber(a.runway_m)} m &middot; ${a.size}`;
 
     if (!isHub) {
-      const hubCost = HUB_COST_BY_SIZE[a.size] ?? HUB_COST_DEFAULT;
-      const canAfford = gameState.finance.cash >= hubCost;
-      popupHtml += `<div style="margin-top:8px;">` +
-        `<button class="btn primary" ${canAfford ? '' : 'disabled'} onclick="purchaseHub('${a.iata}')">Purchase Hub — ${formatMoney(hubCost)}</button>` +
-        `</div>`;
-      if (!canAfford) popupHtml += `<div style="color:var(--red); font-size:11px; margin-top:4px;">Not enough cash.</div>`;
+      const isDomestic = a.country_code === gameState.airline.countryCode;
+      if (!isDomestic) {
+        popupHtml += `<div style="color:var(--text-dim); font-size:11px; margin-top:8px;">Hubs can only be established in your home country.</div>`;
+      } else if (!hasLicense('multiHub')) {
+        popupHtml += `<div style="color:var(--amber); font-size:11px; margin-top:8px;">Requires Multiple Hubs License.</div>`;
+      } else {
+        const hubCost = HUB_COST_BY_SIZE[a.size] ?? HUB_COST_DEFAULT;
+        const canAfford = gameState.finance.cash >= hubCost;
+        popupHtml += `<div style="margin-top:8px;">` +
+          `<button class="btn primary" ${canAfford ? '' : 'disabled'} onclick="purchaseHub('${a.iata}')">Purchase Hub — ${formatMoney(hubCost)}</button>` +
+          `</div>`;
+        if (!canAfford) popupHtml += `<div style="color:var(--red); font-size:11px; margin-top:4px;">Not enough cash.</div>`;
+      }
     }
 
     marker.bindPopup(popupHtml);
@@ -107,7 +114,9 @@ function renderAirportMarkers() {
 function purchaseHub(iata) {
   if (gameState.airline.hubs.includes(iata)) return;
   const airport = AIRPORTS.find(a => a.iata === iata);
-  const hubCost = HUB_COST_BY_SIZE[airport?.size] ?? HUB_COST_DEFAULT;
+  if (!airport || airport.country_code !== gameState.airline.countryCode) return;
+  if (!hasLicense('multiHub')) return;
+  const hubCost = HUB_COST_BY_SIZE[airport.size] ?? HUB_COST_DEFAULT;
   if (gameState.finance.cash < hubCost) return;
 
   gameState.finance.cash -= hubCost;

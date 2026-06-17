@@ -133,12 +133,17 @@ function startNewGame() {
   const hubIata = document.getElementById('setup-hub').value;
 
   gameState = {
-    meta: { version: 2 },
+    meta: { version: 4 },
     airline: {
       name, countryCode, countryName, hubIata,
       hubs: [hubIata],
       livery: selectedLivery,
-      logo: uploadedLogo
+      logo: uploadedLogo,
+      licenses: {
+        multiHub: { owned: false },
+        widebody: { owned: false, nextDueMinute: null },
+        international: { owned: false, nextDueMinute: null }
+      }
     },
     finance: { cash: STARTING_CASH, lastCashUpdateDay: 0 },
     time: { totalMinutes: 0 },
@@ -271,8 +276,22 @@ function migrateGameState() {
     gameState.ui = { showForeignAirports: false };
   }
 
+  // Licenses (saves predating the license system)
+  if (!gameState.airline.licenses) {
+    gameState.airline.licenses = {
+      multiHub: { owned: false },
+      widebody: { owned: false, nextDueMinute: null },
+      international: { owned: false, nextDueMinute: null }
+    };
+  }
+
   gameState.meta = gameState.meta || {};
-  gameState.meta.version = 3;
+  gameState.meta.version = 4;
+
+  // Always rebuild derived economics fresh after load — keeps saves predating
+  // the per-class demand split (or any future economics change) correct
+  // immediately, instead of waiting for the next player-triggered recompute.
+  recomputeAllRoutes();
 }
 
 function resetGame() {

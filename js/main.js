@@ -13,6 +13,7 @@ function initApp() {
   initMap();
   renderOverviewPanel();
   renderFleetPage();
+  renderLicensesPage();
 
   initStorePage();
   initRoutesPage();
@@ -40,6 +41,7 @@ function initNav() {
       if (btn.dataset.view === 'main' && map) {
         setTimeout(() => map.invalidateSize(), 50);
       }
+      if (btn.dataset.view === 'licenses') renderLicensesPage();
     });
   });
 }
@@ -76,6 +78,7 @@ function startClock() {
 
       if (newDay > prevDay) {
         applyCashTick(prevDay, newDay);
+        applyLicenseBilling();
         updateTopbarStats();
         renderOverviewPanel();
       }

@@ -174,6 +174,8 @@ function renderRouteCreationPage() {
       (r.originIata === routeCreationDraft.originIata && r.destIata === routeCreationDraft.destIata) ||
       (r.originIata === routeCreationDraft.destIata && r.destIata === routeCreationDraft.originIata)
     );
+    const isInternational = origin.country_code !== dest.country_code;
+    const blockedInternational = isInternational && !hasLicense('international');
 
     statsEl.classList.remove('hidden');
     statsEl.innerHTML = `
@@ -184,9 +186,10 @@ function renderRouteCreationPage() {
       <div class="rc-stat-row"><span>Block time (w/ turnaround)</span><span>${blockHrs}h ${blockMins}m</span></div>
       <div class="rc-stat-row"><span>Setup cost</span><span style="color:var(--amber)">${formatMoney(ROUTE_CREATION_COST)}</span></div>
       ${exists ? '<div style="color:var(--red); font-size:12px; margin-top:8px;">This route already exists.</div>' : ''}
+      ${blockedInternational ? '<div style="color:var(--amber); font-size:12px; margin-top:8px;">Crosses a border — requires International Flights License.</div>' : ''}
       ${!canAfford ? '<div style="color:var(--red); font-size:12px; margin-top:4px;">Not enough cash.</div>' : ''}
     `;
-    createBtn.disabled = exists || !canAfford;
+    createBtn.disabled = exists || !canAfford || blockedInternational;
   } else {
     statsEl.classList.add('hidden');
     createBtn.disabled = true;
@@ -302,6 +305,10 @@ function confirmCreateRoute() {
     return;
   }
   if (gameState.finance.cash < ROUTE_CREATION_COST) return;
+
+  const origin = AIRPORTS.find(a => a.iata === originIata);
+  const dest = AIRPORTS.find(a => a.iata === destIata);
+  if (origin.country_code !== dest.country_code && !hasLicense('international')) return;
 
   const exists = gameState.routes.some(r =>
     (r.originIata === originIata && r.destIata === destIata) ||

@@ -392,3 +392,78 @@ function applyCashTick(prevDayIndex, newDayIndex) {
   gameState.finance.cash += delta;
   gameState.finance.lastCashUpdateDay += intervals * CASH_UPDATE_INTERVAL_DAYS;
 }
+
+// ---------------------------------------------------------
+// Licenses — purchase, revoke (with cascade to dependents), annual billing.
+// ---------------------------------------------------------
+function hasLicense(id) {
+  return !!gameState.airline.licenses?.[id]?.owned;
+}
+
+function purchaseLicense(id) {
+  const lic = LICENSES[id];
+  const state = gameState.airline.licenses?.[id];
+  if (!lic || !state || state.owned) return;
+  if (lic.requires.some(r => !hasLicense(r))) return;
+  if (gameState.finance.cash < lic.cost) return;
+
+  gameState.finance.cash -= lic.cost;
+  state.owned = true;
+  state.nextDueMinute = lic.annualFee > 0 ? gameState.time.totalMinutes + AGING_YEAR_MINUTES : null;
+
+  saveGame();
+  renderLicensesPage();
+  updateTopbarStats();
+  renderOverviewPanel();
+}
+
+// Revoking a license also revokes anything that requires it (cascade),
+// since its prerequisite no longer holds. `opts.silent` skips the
+// save/re-render — used by applyLicenseBilling, which does one pass at the end.
+function revokeLicense(id, opts = {}) {
+  const state = gameState.airline.licenses?.[id];
+  if (!state || !state.owned) return;
+  state.owned = false;
+  state.nextDueMinute = null;
+
+  Object.values(LICENSES)
+    .filter(l => l.requires.includes(id))
+    .forEach(dep => revokeLicense(dep.id, opts));
+
+  if (!opts.silent) {
+    saveGame();
+    renderLicensesPage();
+    updateTopbarStats();
+    renderOverviewPanel();
+  }
+}
+
+// Called once per in-game day. Bills any owned recurring license whose
+// renewal is due; auto-revokes (+ notifies) anything that can't be afforded.
+function applyLicenseBilling() {
+  const revokedNames = [];
+
+  Object.values(LICENSES).forEach(lic => {
+    if (lic.annualFee <= 0) return;
+    const state = gameState.airline.licenses[lic.id];
+    if (!state?.owned || !state.nextDueMinute) return;
+
+    while (state.owned && gameState.time.totalMinutes >= state.nextDueMinute) {
+      if (gameState.finance.cash >= lic.annualFee) {
+        gameState.finance.cash -= lic.annualFee;
+        state.nextDueMinute += AGING_YEAR_MINUTES;
+      } else {
+        revokeLicense(lic.id, { silent: true });
+        revokedNames.push(lic.name);
+      }
+    }
+  });
+
+  if (revokedNames.length > 0) {
+    saveGame();
+    renderLicensesPage();
+    updateTopbarStats();
+    renderOverviewPanel();
+    notifyLicensesRevoked(revokedNames);
+  }
+}

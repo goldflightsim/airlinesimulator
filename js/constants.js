@@ -19,6 +19,29 @@ const HUB_COST_BY_SIZE = { major: 100000000, large: 50000000, regional: 15000000
 const HUB_COST_DEFAULT = HUB_COST_BY_SIZE.regional;
 const ROUTE_CREATION_COST = 500000; // one-time setup cost to open a new route
 
+// --- Licenses -------------------------------------------------------
+// Regulatory gates on company growth. Each unlocks a specific action;
+// `requires` lists prerequisite license ids (must already be owned).
+// `annualFee` (0 = one-time only) is billed every AGING_YEAR_MINUTES from
+// purchase/last payment; missing a payment auto-revokes the license.
+const LICENSES = {
+  multiHub: {
+    id: 'multiHub', name: 'Multiple Hubs License',
+    description: 'Allows establishing more than one hub (home country only).',
+    cost: 20000000, annualFee: 0, requires: []
+  },
+  widebody: {
+    id: 'widebody', name: 'Widebody License',
+    description: 'Allows purchasing widebody aircraft, new or used.',
+    cost: 20000000, annualFee: 5000000, requires: ['multiHub']
+  },
+  international: {
+    id: 'international', name: 'International Flights License',
+    description: 'Allows creating routes that cross a national border.',
+    cost: 50000000, annualFee: 10000000, requires: ['multiHub', 'widebody']
+  }
+};
+
 // --- Per-class demand split -------------------------------------
 // Baseline weekly-passenger split by cabin class, at gdp_index = 1.0.
 // Which table applies to a route is decided by the SMALLER of the two
